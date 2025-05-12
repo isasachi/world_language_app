@@ -94,28 +94,36 @@ const Attendance = () => {
       if (!selectedClassroom || !activeQuarter) return [];
   
       const classroom = classrooms?.find(c => c.id === selectedClassroom);
-      if (!classroom?.class_schedule.days) return [];
+      if (!classroom?.class_schedule?.days?.length) return [];
   
       const dates: Date[] = [];
-      let currentDate = parseISO(activeQuarter.start_date);
-      const endDate = parseISO(activeQuarter.end_date);
-      const breakDates = activeQuarter.break_dates.map(d => parseISO(d));
+      let currentDate = new Date(parseISO(activeQuarter.start_date));
+      const endDate = new Date(parseISO(activeQuarter.end_date));
+      const breakDates = activeQuarter.break_dates ? 
+        activeQuarter.break_dates.map(d => format(parseISO(d), 'yyyy-MM-dd')) : 
+        [];
   
       while (currentDate <= endDate) {
+        const dayOfWeek = format(currentDate, 'EEEE');
+        const formattedDate = format(currentDate, 'yyyy-MM-dd');
+        
+        // Check if the day is in class schedule AND it's not a weekend AND it's not a break date
         if (
-          classroom.class_schedule.days.includes(format(currentDate, 'EEEE')) &&
+          classroom.class_schedule.days.includes(dayOfWeek) &&
           !isWeekend(currentDate) &&
-          !breakDates.some(breakDate => 
-            format(breakDate, 'yyyy-MM-dd') === format(currentDate, 'yyyy-MM-dd')
-          )
+          !breakDates.includes(formattedDate)
         ) {
-          dates.push(currentDate);
+          // Create new Date object to avoid referencing the same object
+          dates.push(new Date(currentDate));
         }
-        currentDate = new Date(currentDate.setDate(currentDate.getDate() + 1));
+        
+        // Create a new Date object instead of modifying the existing one
+        currentDate = new Date(currentDate);
+        currentDate.setDate(currentDate.getDate() + 1);
       }
   
       return dates;
-    }, [selectedClassroom, activeQuarter]);
+    }, [selectedClassroom, activeQuarter, classrooms]);
   
     // Save attendance mutation
     const saveAttendanceMutation = useMutation({

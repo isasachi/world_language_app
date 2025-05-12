@@ -155,7 +155,7 @@ const Home = () => {
           const sum = processedGrades.reduce((acc, grade) => acc + grade[skill.key as keyof typeof grade], 0);
           return {
             name: skill.name,
-            average: processedGrades.length ? sum / processedGrades.length : 0
+            average: processedGrades.length ? Number((sum / processedGrades.length).toFixed(2)) : 0
           };
         });
 
@@ -273,8 +273,8 @@ const Home = () => {
         });
 
         const trends = Object.values(attendanceByDate)
-          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-          .slice(-10); // Get the last 10 days with attendance records
+          .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          // Show all dates of the quarter instead of just the last 10
 
         setAttendanceTrend(trends as AttendanceTrend[]);
 
@@ -300,7 +300,7 @@ const Home = () => {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8 text-gray-800">School Statistics Dashboard</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+      <div className="grid grid-cols-1 gap-8 mb-8">
         {/* Students at Risk (Grades) */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4 text-gray-700">Students at Risk (Grades)</h2>
@@ -310,7 +310,7 @@ const Home = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="student_name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
                 <YAxis domain={[0, 100]} />
-                <Tooltip />
+                <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Average Score']} />
                 <Legend />
                 <Bar dataKey="average" name="Average Grade" fill="#8884d8" />
               </BarChart>
@@ -321,7 +321,9 @@ const Home = () => {
             </div>
           )}
         </div>
+      </div>
 
+      <div className="grid grid-cols-1 gap-8 mb-8">
         {/* Students at Risk (Attendance) */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4 text-gray-700">Students at Risk (Attendance)</h2>
@@ -331,7 +333,7 @@ const Home = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="student_name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
                 <YAxis />
-                <Tooltip />
+                <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Average Score']} />
                 <Legend />
                 <Bar dataKey="absent" name="Absences" fill="#ff8042" />
                 <Bar dataKey="tardy" name="Tardies" fill="#ffc658" />
@@ -345,7 +347,7 @@ const Home = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+      <div className="grid grid-cols-1 gap-8 mb-8">
         {/* Skill Performance */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4 text-gray-700">Average Performance by Skill</h2>
@@ -354,12 +356,14 @@ const Home = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis domain={[0, 100]} />
-              <Tooltip />
+              <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Average Score']} />
               <Area type="monotone" dataKey="average" name="Average Score" stroke="#8884d8" fill="#8884d8" fillOpacity={0.3} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
-
+      </div>
+        
+      <div className="grid grid-cols-1 gap-8 mb-8">
         {/* Classroom Distribution */}
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h2 className="text-xl font-semibold mb-4 text-gray-700">Student Distribution by Classroom</h2>
@@ -369,7 +373,6 @@ const Home = () => {
                 data={classroomDistribution}
                 cx="50%"
                 cy="50%"
-                labelLine={false}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -388,26 +391,28 @@ const Home = () => {
       </div>
 
       {/* Attendance Trend */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h2 className="text-xl font-semibold mb-4 text-gray-700">Attendance Trend</h2>
-        {attendanceTrend.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={attendanceTrend}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="present" name="Present" stroke="#82ca9d" />
-              <Line type="monotone" dataKey="absent" name="Absent" stroke="#ff8042" />
-              <Line type="monotone" dataKey="tardy" name="Tardy" stroke="#ffc658" />
-            </LineChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="flex items-center justify-center h-64 text-gray-500">
-            No attendance trend data available
-          </div>
-        )}
+      <div className="grid grid-cols-1 gap-8 mb-8">
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold mb-4 text-gray-700">Attendance Trend</h2>
+          {attendanceTrend.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={attendanceTrend}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={80} />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="present" name="Present" stroke="#82ca9d" />
+                <Line type="monotone" dataKey="absent" name="Absent" stroke="#ff8042" />
+                <Line type="monotone" dataKey="tardy" name="Tardy" stroke="#ffc658" />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-64 text-gray-500">
+              No attendance trend data available
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
