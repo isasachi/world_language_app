@@ -6,11 +6,16 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { studentSchema } from "../schemas";
-import { format } from "date-fns";
-import { Edit, Trash2 } from "lucide-react";
+import { format, differenceInYears } from "date-fns";
+import { Edit, Trash2, ArrowLeft } from "lucide-react";
 import EditModal from "../components/EditModal";
 
-type StudentFormValues = z.infer<typeof studentSchema>;
+// Create a custom schema that extends the student schema with status
+const studentFormSchema = studentSchema.extend({
+  status: z.enum(["Enrolled", "Graduated", "Dropped Out"]),
+});
+
+type StudentFormValues = z.infer<typeof studentFormSchema>;
 
 const StudentDetails = () => {
   const { id } = useParams();
@@ -22,37 +27,47 @@ const StudentDetails = () => {
   const { data: student, isLoading } = useQuery({
     queryKey: ["student", id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch student data including status
+      const { data: studentData, error: studentError } = await supabase
         .from("students")
         .select("*")
         .eq("id", id)
         .single();
 
-      if (error) throw error;
-      return data;
+      if (studentError) throw studentError;
+
+      // Return student data with default status if not present
+      return {
+        ...studentData,
+        status: studentData.status || "Enrolled" // Default to "Enrolled" if no status found
+      };
     },
   });
 
   const form = useForm<StudentFormValues>({
-    resolver: zodResolver(studentSchema),
+    resolver: zodResolver(studentFormSchema),
     defaultValues: student,
   });
 
   useEffect(() => {
     if (student) {
-      form.reset(student);
+      form.reset({
+        ...student,
+        status: student.status || "Enrolled",
+      });
     }
   }, [student, form]);
 
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: async (data: StudentFormValues) => {
-      const { error } = await supabase
+      // Update student data including status
+      const { error: studentError } = await supabase
         .from("students")
         .update(data)
         .eq("id", id);
 
-      if (error) throw error;
+      if (studentError) throw studentError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["student", id] });
@@ -63,10 +78,7 @@ const StudentDetails = () => {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from("students")
-        .delete()
-        .eq("id", id);
+      const { error } = await supabase.from("students").delete().eq("id", id);
 
       if (error) throw error;
     },
@@ -87,6 +99,13 @@ const StudentDetails = () => {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="bg-white rounded-lg shadow-lg p-6">
         <div className="flex justify-between items-center mb-6">
+          <button
+            onClick={() => navigate("/dashboard/students")}
+            className="flex items-center gap-2 text-gray-700 hover:text-gray-900 cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back</span>
+          </button>
           <h1 className="text-2xl font-bold">Student Details</h1>
           <div className="flex gap-2">
             <button
@@ -98,7 +117,7 @@ const StudentDetails = () => {
             </button>
             <button
               onClick={() => {
-                  deleteMutation.mutate();
+                deleteMutation.mutate();
               }}
               className="px-4 py-2 text-red-600 border border-red-600 cursor-pointer rounded hover:bg-red-50 flex items-center gap-2"
             >
@@ -131,7 +150,16 @@ const StudentDetails = () => {
           </div>
           <div>
             <h3 className="text-sm font-medium text-gray-500">Birth Date</h3>
-            <p className="mt-1 text-lg">{format(new Date(student.birth_date), 'MMMM d, yyyy')}</p>
+            <p className="mt-1 text-lg">
+              {format(new Date(student.birth_date), "MMMM d, yyyy")}
+            </p>
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-gray-500">Age</h3>
+            <p className="mt-1 text-lg">
+              {differenceInYears(new Date(), new Date(student.birth_date))}{" "}
+              years
+            </p>
           </div>
           <div>
             <h3 className="text-sm font-medium text-gray-500">Country</h3>
@@ -140,15 +168,33 @@ const StudentDetails = () => {
           <div>
             <h3 className="text-sm font-medium text-gray-500">Address</h3>
             <p className="mt-1 text-lg">{student.address}</p>
-        </div>
-        <div>
+          </div>
+          <div>
             <h3 className="text-sm font-medium text-gray-500">Parent's Name</h3>
             <p className="mt-1 text-lg">{student.parent_full_name}</p>
-        </div>
-        <div>
-            <h3 className="text-sm font-medium text-gray-500">Parent's Phone</h3>
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-gray-500">
+              Parent's Phone
+            </h3>
             <p className="mt-1 text-lg">{student.parent_phone}</p>
-        </div>
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-gray-500">Status</h3>
+            <p className="mt-1 text-lg">
+              <span
+                className={`px-2 py-1 rounded text-sm ${
+                  student.status === "Enrolled"
+                    ? "bg-green-100 text-green-800"
+                    : student.status === "Graduated"
+                      ? "bg-blue-100 text-blue-800"
+                      : "bg-red-100 text-red-800"
+                }`}
+              >
+                {student.status || "Enrolled"}
+              </span>
+            </p>
+          </div>
         </div>
       </div>
 
@@ -157,207 +203,242 @@ const StudentDetails = () => {
         onClose={() => setIsEditModalOpen(false)}
         title="Edit Student"
       >
-        <form onSubmit={form.handleSubmit((data) => updateMutation.mutate(data))}>
-        <div className="grid grid-cols-2 gap-4">
+        <form
+          onSubmit={form.handleSubmit((data) => updateMutation.mutate(data))}
+        >
+          <div className="grid grid-cols-2 gap-4">
             <div>
-                <label className="block text-sm font-medium mb-1">First Name</label>
-                <Controller
+              <label className="block text-sm font-medium mb-1">
+                First Name
+              </label>
+              <Controller
                 name="first_name"
                 control={form.control}
                 render={({ field }) => (
-                    <input
+                  <input
                     {...field}
                     className="w-full p-2 border rounded focus:ring-1 focus:ring-violet-500"
-                    />
+                  />
                 )}
-                />
-                {form.formState.errors.first_name && (
+              />
+              {form.formState.errors.first_name && (
                 <p className="text-red-500 text-sm mt-1">
-                    {form.formState.errors.first_name.message}
+                  {form.formState.errors.first_name.message}
                 </p>
-                )}
+              )}
             </div>
 
             <div>
-                <label className="block text-sm font-medium mb-1">Last Name</label>
-                <Controller
+              <label className="block text-sm font-medium mb-1">
+                Last Name
+              </label>
+              <Controller
                 name="last_name"
                 control={form.control}
                 render={({ field }) => (
-                    <input
+                  <input
                     {...field}
                     className="w-full p-2 border rounded focus:ring-1 focus:ring-violet-500"
-                    />
+                  />
                 )}
-                />
-                {form.formState.errors.last_name && (
+              />
+              {form.formState.errors.last_name && (
                 <p className="text-red-500 text-sm mt-1">
-                    {form.formState.errors.last_name.message}
+                  {form.formState.errors.last_name.message}
                 </p>
-                )}
+              )}
             </div>
 
             <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
-                <Controller
+              <label className="block text-sm font-medium mb-1">Email</label>
+              <Controller
                 name="email"
                 control={form.control}
                 render={({ field }) => (
-                    <input
+                  <input
                     {...field}
                     type="email"
                     className="w-full p-2 border rounded focus:ring-1 focus:ring-violet-500"
-                    />
+                  />
                 )}
-                />
-                {form.formState.errors.email && (
+              />
+              {form.formState.errors.email && (
                 <p className="text-red-500 text-sm mt-1">
-                    {form.formState.errors.email.message}
+                  {form.formState.errors.email.message}
                 </p>
-                )}
+              )}
             </div>
 
             <div>
-                <label className="block text-sm font-medium mb-1">Phone</label>
-                <Controller
+              <label className="block text-sm font-medium mb-1">Phone</label>
+              <Controller
                 name="phone"
                 control={form.control}
                 render={({ field }) => (
-                    <input
+                  <input
                     {...field}
                     type="tel"
                     className="w-full p-2 border rounded focus:ring-1 focus:ring-violet-500"
-                    />
+                  />
                 )}
-                />
-                {form.formState.errors.phone && (
+              />
+              {form.formState.errors.phone && (
                 <p className="text-red-500 text-sm mt-1">
-                    {form.formState.errors.phone.message}
+                  {form.formState.errors.phone.message}
                 </p>
-                )}
+              )}
             </div>
 
             <div>
-                <label className="block text-sm font-medium mb-1">Gender</label>
-                <Controller
+              <label className="block text-sm font-medium mb-1">Gender</label>
+              <Controller
                 name="gender"
                 control={form.control}
                 render={({ field }) => (
-                    <select
+                  <select
                     {...field}
                     className="w-full p-2 border rounded focus:ring-1 focus:ring-violet-500"
-                    >
+                  >
                     <option value="">Select gender...</option>
                     <option value="male">Male</option>
                     <option value="female">Female</option>
                     <option value="other">Other</option>
-                    </select>
+                  </select>
                 )}
-                />
-                {form.formState.errors.gender && (
+              />
+              {form.formState.errors.gender && (
                 <p className="text-red-500 text-sm mt-1">
-                    {form.formState.errors.gender.message}
+                  {form.formState.errors.gender.message}
                 </p>
-                )}
+              )}
             </div>
 
             <div>
-                <label className="block text-sm font-medium mb-1">Birth Date</label>
-                <Controller
+              <label className="block text-sm font-medium mb-1">
+                Birth Date
+              </label>
+              <Controller
                 name="birth_date"
                 control={form.control}
                 render={({ field: { value, ...field } }) => (
-                    <input
+                  <input
                     {...field}
                     type="date"
-                    value={value ? format(new Date(value), 'yyyy-MM-dd') : ''}
+                    value={value ? format(new Date(value), "yyyy-MM-dd") : ""}
                     className="w-full p-2 border rounded focus:ring-1 focus:ring-violet-500"
-                    />
+                  />
                 )}
-                />
-                {form.formState.errors.birth_date && (
+              />
+              {form.formState.errors.birth_date && (
                 <p className="text-red-500 text-sm mt-1">
-                    {form.formState.errors.birth_date.message}
+                  {form.formState.errors.birth_date.message}
                 </p>
-                )}
+              )}
             </div>
 
             <div>
-                <label className="block text-sm font-medium mb-1">Country</label>
-                <Controller
+              <label className="block text-sm font-medium mb-1">Country</label>
+              <Controller
                 name="country"
                 control={form.control}
                 render={({ field }) => (
-                    <input
+                  <input
                     {...field}
                     className="w-full p-2 border rounded focus:ring-1 focus:ring-violet-500"
-                    />
+                  />
                 )}
-                />
-                {form.formState.errors.country && (
+              />
+              {form.formState.errors.country && (
                 <p className="text-red-500 text-sm mt-1">
-                    {form.formState.errors.country.message}
+                  {form.formState.errors.country.message}
                 </p>
-                )}
+              )}
             </div>
             <div className="col-span-2">
-            <label className="block text-sm font-medium mb-1">Address</label>
-            <Controller
+              <label className="block text-sm font-medium mb-1">Address</label>
+              <Controller
                 name="address"
                 control={form.control}
                 render={({ field }) => (
-                <input
+                  <input
                     {...field}
                     className="w-full p-2 border rounded focus:ring-1 focus:ring-violet-500"
-                />
+                  />
                 )}
-            />
-            {form.formState.errors.address && (
+              />
+              {form.formState.errors.address && (
                 <p className="text-red-500 text-sm mt-1">
-                {form.formState.errors.address.message}
+                  {form.formState.errors.address.message}
                 </p>
-            )}
+              )}
             </div>
 
             <div>
-            <label className="block text-sm font-medium mb-1">Parent's Full Name</label>
-            <Controller
+              <label className="block text-sm font-medium mb-1">
+                Parent's Full Name
+              </label>
+              <Controller
                 name="parent_full_name"
                 control={form.control}
                 render={({ field }) => (
-                <input
+                  <input
                     {...field}
                     className="w-full p-2 border rounded focus:ring-1 focus:ring-violet-500"
-                />
+                  />
                 )}
-            />
-            {form.formState.errors.parent_full_name && (
+              />
+              {form.formState.errors.parent_full_name && (
                 <p className="text-red-500 text-sm mt-1">
-                {form.formState.errors.parent_full_name.message}
+                  {form.formState.errors.parent_full_name.message}
                 </p>
-            )}
+              )}
             </div>
 
             <div>
-            <label className="block text-sm font-medium mb-1">Parent's Phone</label>
-            <Controller
+              <label className="block text-sm font-medium mb-1">
+                Parent's Phone
+              </label>
+              <Controller
                 name="parent_phone"
                 control={form.control}
                 render={({ field }) => (
-                <input
+                  <input
                     {...field}
                     type="tel"
                     className="w-full p-2 border rounded focus:ring-1 focus:ring-violet-500"
-                />
+                  />
                 )}
-            />
-            {form.formState.errors.parent_phone && (
+              />
+              {form.formState.errors.parent_phone && (
                 <p className="text-red-500 text-sm mt-1">
-                {form.formState.errors.parent_phone.message}
+                  {form.formState.errors.parent_phone.message}
                 </p>
-            )}
+              )}
             </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Status</label>
+              <Controller
+                name="status"
+                control={form.control}
+                render={({ field }) => (
+                  <select
+                    {...field}
+                    className="w-full p-2 border rounded focus:ring-1 focus:ring-violet-500"
+                  >
+                    <option value="Enrolled">Enrolled</option>
+                    <option value="Graduated">Graduated</option>
+                    <option value="Dropped Out">Dropped Out</option>
+                  </select>
+                )}
+              />
+              {form.formState.errors.status && (
+                <p className="text-red-500 text-sm mt-1">
+                  {form.formState.errors.status.message}
+                </p>
+              )}
             </div>
+          </div>
 
           <div className="flex justify-end gap-2 mt-6">
             <button

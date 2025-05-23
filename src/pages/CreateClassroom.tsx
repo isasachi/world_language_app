@@ -49,6 +49,7 @@ export default function CreateClassroom() {
       end_time: "",
       teacher_id: "",
       student_ids: [],
+      zoom_link: "",
     },
   });
 
@@ -69,11 +70,11 @@ export default function CreateClassroom() {
 
   const createClassroomMutation = useMutation({
     mutationFn: async (values: ClassroomForm) => {
-      const { name, proficiency_level_id, days, start_time, end_time, teacher_id, student_ids = [] } = values;
+      const { name, proficiency_level_id, days, start_time, end_time, teacher_id, student_ids = [], zoom_link } = values;
 
       const { data: classroom, error: classroomError } = await supabase
         .from("classrooms")
-        .insert({ name, proficiency_level_id })
+        .insert({ name, proficiency_level_id, zoom_link: zoom_link || null })
         .select("id")
         .single();
       if (classroomError) throw classroomError;
@@ -281,6 +282,26 @@ export default function CreateClassroom() {
               />
               {errors.end_time && (
                 <p className="text-red-500 text-sm mt-1">{errors.end_time.message}</p>
+              )}
+            </div>
+            
+            {/* Zoom Link */}
+            <div className="col-span-2">
+              <label className="block text-sm font-medium mb-1">Zoom Link</label>
+              <Controller
+                name="zoom_link"
+                control={control}
+                render={({ field }) => (
+                  <input
+                    type="url"
+                    placeholder="https://zoom.us/j/123456789"
+                    {...field}
+                    className="w-full p-2 border rounded focus:ring-1 focus:ring-violet-500"
+                  />
+                )}
+              />
+              {errors.zoom_link && (
+                <p className="text-red-500 text-sm mt-1">{errors.zoom_link.message}</p>
               )}
             </div>
 

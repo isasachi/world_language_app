@@ -54,6 +54,8 @@ export const studentSchema = z.object({
       .min(7, { message: "Parent's phone number must be at least 7 digits long." })
       .max(15, { message: "Parent's phone number must not exceed 15 digits." })
       .regex(/^\+?[0-9\s-]+$/, { message: "Phone number can only contain numbers, spaces, hyphens, and an optional '+'." }),
+      
+    status: z.enum(["Enrolled", "Graduated", "Dropped Out"]).optional(),
   });
 
 export const teacherSchema = z.object({
@@ -134,6 +136,7 @@ export const ClassroomEditSchema = z.object({
   name: z.string().min(2),
   proficiency_level_id: z.string(),
   teacher_id: z.string(),
+  zoom_link: z.string().url().optional().or(z.literal("")),
   days: z.array(z.string()),
   start_time: z.string(),
   end_time: z.string(),
@@ -146,5 +149,6 @@ export const createClassroomSchema = z.object({
   start_time: z.string().min(1, "Start time is required"),
   end_time: z.string().min(1, "End time is required"),
   teacher_id: z.string().min(1, "Teacher is required"),
+  zoom_link: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   student_ids: z.array(z.string()).optional(),
 });

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Home, Calendar, School, Users, GraduationCap, CheckCircle, Clipboard, Menu, LogOut } from "lucide-react";
+import { Home, Calendar, School, Users, GraduationCap, CheckCircle, Clipboard, Menu, LogOut, BarChart } from "lucide-react";
 import { supabase } from "../supabase/supabaseClient";
 
 const sidebarLinks = [
@@ -10,6 +10,7 @@ const sidebarLinks = [
   { name: "Students", path: "/dashboard/students", icon: <GraduationCap size={20} /> },
   { name: "Attendance", path: "/dashboard/attendance", icon: <CheckCircle size={20} /> },
   { name: "Grading", path: "/dashboard/grading", icon: <Clipboard size={20} /> },
+  { name: "Reports", path: "/dashboard/reports", icon: <BarChart size={20} /> },
 ];
 
 interface SidebarProps {

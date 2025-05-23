@@ -11,6 +11,7 @@ import Classrooms from "./pages/Classrooms";
 import Students from "./pages/Students";
 import Attendance from "./pages/Attendance";
 import Grading from "./pages/Grading";
+import Reports from "./pages/Reports";
 import SignUp from "./pages/SignUp";
 import SignIn from "./pages/SignIn";
 import PendingActivation from "./pages/PendingActivation";
@@ -45,6 +46,7 @@ const App = () => {
                 <Route path="students/:id" element={<StudentDetails />} />
                 <Route path="attendance" element={<Attendance />} />
                 <Route path="grading" element={<Grading />} />
+                <Route path="reports" element={<Reports />} />
                 <Route path="users/register-student/:userId" element={<RegisterStudent />} />
                 <Route path="users/register-teacher/:userId" element={<RegisterTeacher />} />
               </Route>

@@ -17,6 +17,7 @@ type ClassroomEditValues = z.infer<typeof ClassroomEditSchema>;
 interface SupabaseResponse {
     id: string;
     name: string;
+    zoom_link: string | null;
     proficiency_level: any; // We'll cast this appropriately
     class_schedule: any[]; 
     teacher: any[]; 
@@ -30,6 +31,7 @@ interface ClassroomDetails {
     class_schedule: ClassSchedule | null;
     teacher: Teacher | null;
     students: Student[];
+    zoom_link: string | null;
   }
   
   interface ProficiencyLevel {
@@ -65,6 +67,7 @@ interface ClassroomDetails {
       .select(`
         id,
         name,
+        zoom_link,
         proficiency_level:proficiency_level_id(
           id,
           name
@@ -146,7 +149,8 @@ interface ClassroomDetails {
       proficiency_level: proficiencyLevel,
       class_schedule: typedData.class_schedule[0] || null,
       teacher: teacher,
-      students: typedData.students.map(s => s.student)
+      students: typedData.students.map(s => s.student),
+      zoom_link: typedData.zoom_link || null
     };
   
     return classroomDetails;
@@ -248,6 +252,7 @@ interface ClassroomDetails {
         name: classroom?.name || "",
         proficiency_level_id: classroom?.proficiency_level?.id || "",
         teacher_id: classroom?.teacher?.id || "",
+        zoom_link: classroom?.zoom_link || "",
         days: classroom?.class_schedule?.days || [],
         start_time: classroom?.class_schedule?.start_time || "",
         end_time: classroom?.class_schedule?.end_time || "",
@@ -262,6 +267,7 @@ interface ClassroomDetails {
           name: classroom.name,
           proficiency_level_id: classroom.proficiency_level?.id,
           teacher_id: classroom.teacher?.id || "",
+          zoom_link: classroom.zoom_link || "",
           days: classroom.class_schedule?.days || [],
           start_time: classroom.class_schedule?.start_time || "",
           end_time: classroom.class_schedule?.end_time || "",
@@ -281,7 +287,11 @@ interface ClassroomDetails {
         
         const { error: classroomError } = await supabase
           .from("classrooms")
-          .update({ name: data.name, proficiency_level_id: data.proficiency_level_id })
+          .update({ 
+            name: data.name, 
+            proficiency_level_id: data.proficiency_level_id,
+            zoom_link: data.zoom_link || null 
+          })
           .eq("id", id);
     
         const { error: scheduleError } = await supabase
@@ -378,6 +388,7 @@ interface ClassroomDetails {
       class_schedule,
       teacher,
       students,
+      zoom_link,
     } = classroom;
   
     return (
@@ -432,12 +443,24 @@ interface ClassroomDetails {
                 <p className="mt-1 text-lg text-gray-400">No schedule assigned</p>
               )}
             </div>
-            <div className="col-span-2">
+            <div>
               <h3 className="text-sm font-medium text-gray-500">Teacher</h3>
               {teacher ? (
                 <p className="mt-1 text-lg">{teacher?.first_name} {teacher?.last_name}</p>
               ) : (
                 <p className="mt-1 text-lg text-gray-400">No teacher assigned</p>
+              )}
+            </div>
+            <div className="col-span-2">
+              <h3 className="text-sm font-medium text-gray-500">Zoom Link</h3>
+              {zoom_link ? (
+                <p className="mt-1 text-lg">
+                  <a href={zoom_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    {zoom_link}
+                  </a>
+                </p>
+              ) : (
+                <p className="mt-1 text-lg text-gray-400">No Zoom link available</p>
               )}
             </div>
           </div>
@@ -547,6 +570,25 @@ interface ClassroomDetails {
                       />
                     )}
                   />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-1">Zoom Link</label>
+                  <Controller
+                    name="zoom_link"
+                    control={control}
+                    render={({ field }) => (
+                      <input
+                        type="url"
+                        placeholder="https://zoom.us/j/123456789"
+                        {...field}
+                        className="w-full p-2 border rounded focus:ring-1 focus:ring-violet-500"
+                      />
+                    )}
+                  />
+                  {errors.zoom_link && (
+                    <p className="text-red-500 text-sm mt-1">{errors.zoom_link.message}</p>
+                  )}
                 </div>
 
                 <div className="col-span-2">
