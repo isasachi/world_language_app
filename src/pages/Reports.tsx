@@ -449,8 +449,7 @@ const Reports = () => {
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Reports Dashboard</h1>
-        <p className="mt-2 text-gray-600">Generate and view attendance and grading reports for your classrooms</p>
+        <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
       </div>
 
       <div className="mb-6 space-y-4">
