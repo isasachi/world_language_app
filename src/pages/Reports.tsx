@@ -1,10 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "../supabase/supabaseClient";
 import { useQuery } from "@tanstack/react-query";
 import { useQuarterStore } from "../store/quartersStore";
 import { parseISO, eachMonthOfInterval, format, startOfMonth, endOfMonth } from "date-fns";
 import { ColumnDef } from "@tanstack/react-table";
 import Table from "../components/Table";
+import { toPng } from 'html-to-image';
+import jsPDF from 'jspdf';
 
 interface Classroom {
   id: string;
@@ -55,6 +57,8 @@ const Reports = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [reportType, setReportType] = useState<string>("Attendance");
   const [availableMonths, setAvailableMonths] = useState<MonthOption[]>([]);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   // Calculate available months based on quarter dates
   useEffect(() => {
@@ -378,10 +382,75 @@ const Reports = () => {
     }
   ], []);
 
+  const downloadPDF = async () => {
+    if (!reportRef.current) {
+      alert("Report not found. Please make sure the report is loaded.");
+      return;
+    }
+
+    setIsDownloading(true);
+
+    try {
+      // Build filename
+      const classroomName =
+        classrooms?.find((c) => c.id === selectedClassroom)?.name || "All";
+      const monthLabel =
+        availableMonths.find((m) => m.value === selectedMonth)?.label ||
+        "All";
+      const filename = `${reportType}_Report_${classroomName}_${monthLabel}.pdf`;
+
+      // Capture DOM as PNG data URL
+      const dataUrl = await toPng(reportRef.current, {
+        cacheBust: true,
+      });
+
+      // Measure the image so we know how big it is:
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise<void>((resolve) => {
+        img.onload = () => resolve();
+      });
+
+      // Create a new jsPDF, auto‐choose orientation
+      const pdf = new jsPDF({
+        orientation:
+          img.naturalWidth > img.naturalHeight ? "landscape" : "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const ratio = Math.min(
+        pdfWidth / img.naturalWidth,
+        pdfHeight / img.naturalHeight
+      );
+      const imgX = (pdfWidth - img.naturalWidth * ratio) / 2;
+      const imgY = 10; // top margin
+
+      pdf.addImage(
+        dataUrl,
+        "PNG",
+        imgX,
+        imgY,
+        img.naturalWidth * ratio,
+        img.naturalHeight * ratio
+      );
+
+      pdf.save(filename);
+    } catch (err) {
+      console.error("Error generating PDF with html-to-image:", err);
+      alert(`Error generating PDF: ${err instanceof Error ? err.message : err}`);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold">Reports</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Reports Dashboard</h1>
+        <p className="mt-2 text-gray-600">Generate and view attendance and grading reports for your classrooms</p>
       </div>
 
       <div className="mb-6 space-y-4">
@@ -420,6 +489,58 @@ const Reports = () => {
             <option value="Attendance">Attendance</option>
             <option value="Grading">Grading</option>
           </select>
+
+          {/* Download PDF Button */}
+      {selectedClassroom && selectedMonth && (
+        <button
+          onClick={downloadPDF}
+          disabled={isDownloading}
+          className="px-4 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 disabled:bg-violet-400 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          {isDownloading ? (
+            <>
+              <svg
+                className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              Generating PDF...
+            </>
+          ) : (
+            <>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Download PDF
+            </>
+          )}
+        </button>
+      )}
         </div>
       </div>
 
@@ -448,8 +569,15 @@ const Reports = () => {
 
       {/* Attendance Report Table */}
       {reportType === 'Attendance' && selectedClassroom && selectedMonth && (
-        <div className="mt-6">
-          <h2 className="text-lg font-semibold mb-4">Attendance Report</h2>
+        <div className="mt-6" ref={reportRef}>
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+            <h2 className="text-xl font-bold text-gray-900">Attendance Report</h2>
+            <div className="text-sm text-gray-600 mt-1">
+              <p>Classroom: {classrooms?.find(c => c.id === selectedClassroom)?.name}</p>
+              <p>Month: {availableMonths.find(m => m.value === selectedMonth)?.label}</p>
+              <p>Quarter: {activeQuarter?.name}</p>
+            </div>
+          </div>
           <Table 
             data={attendanceReportData.data} 
             columns={attendanceColumns}
@@ -461,8 +589,15 @@ const Reports = () => {
 
       {/* Grading Report Table */}
       {reportType === 'Grading' && selectedClassroom && selectedMonth && (
-        <div className="mt-6">
-          <h2 className="text-lg font-semibold mb-4">Grading Report</h2>
+        <div className="mt-6" ref={reportRef}>
+          <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+            <h2 className="text-xl font-bold text-gray-900">Grading Report</h2>
+            <div className="text-sm text-gray-600 mt-1">
+              <p>Classroom: {classrooms?.find(c => c.id === selectedClassroom)?.name}</p>
+              <p>Month: {availableMonths.find(m => m.value === selectedMonth)?.label}</p>
+              <p>Quarter: {activeQuarter?.name}</p>
+            </div>
+          </div>
           <Table 
             data={gradingData || []} 
             columns={gradingColumns}
