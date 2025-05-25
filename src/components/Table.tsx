@@ -4,9 +4,10 @@ type TableProps<T> = {
   data: T[];
   columns: ColumnDef<T>[];
   loading: boolean;
+  enableHorizontalScroll?: boolean;
 };
 
-export default function Table<T>({ data, columns, loading }: TableProps<T>) {
+export default function Table<T>({ data, columns, loading, enableHorizontalScroll }: TableProps<T>) {
   const table = useReactTable({
     data,
     columns,
@@ -27,15 +28,15 @@ export default function Table<T>({ data, columns, loading }: TableProps<T>) {
           <LoadingSpinner />
         ) : (
           <div className="relative overflow-x-auto">
-            <table className="w-full table-fixed">
+            <table className={enableHorizontalScroll ? "w-full" : "w-full table-fixed"}>
               <thead className="bg-gray-50">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id} className="border-b border-gray-200">
                     {headerGroup.headers.map((header) => (
                       <th 
                         key={header.id} 
-                        className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider truncate"
-                        style={{ width: `${100 / columns.length}%` }}
+                        className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${enableHorizontalScroll ? "" : "truncate"}`}
+                        style={enableHorizontalScroll ? {} : { width: `${100 / columns.length}%` }}
                       >
                         {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                       </th>
@@ -53,10 +54,10 @@ export default function Table<T>({ data, columns, loading }: TableProps<T>) {
                       {row.getVisibleCells().map((cell) => (
                         <td 
                           key={cell.id} 
-                          className="px-4 py-4 text-sm text-gray-600 text-wrap truncate"
-                          style={{ width: `${100 / columns.length}%` }}
+                          className={`px-4 py-4 text-sm text-gray-600 text-wrap ${enableHorizontalScroll ? "" : "truncate"}`}
+                          style={enableHorizontalScroll ? {} : { width: `${100 / columns.length}%` }}
                         >
-                          <div className="overflow-hidden text-ellipsis">
+                          <div className={enableHorizontalScroll ? "" : "overflow-hidden text-ellipsis"}>
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </div>
                         </td>
